@@ -1,0 +1,140 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#f4f7ff">
+<title>我的课程表</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f4f7ff;color:#283650;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+header{padding:30px 20px 15px}
+h1{font-size:26px;margin:0 0 7px}
+.sub{color:#8793a8;font-size:13px}
+main{padding:10px 16px 35px;max-width:650px;margin:auto}
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin:10px 0 20px}
+.day{border:0;border-radius:12px;padding:12px 2px;background:white;color:#65738b;font-size:13px}
+.day.active{background:#587bc8;color:white}
+h2{font-size:19px;margin:15px 0}
+.course{background:white;border-radius:14px;padding:15px;margin-bottom:11px;border-left:5px solid #7797df;box-shadow:0 3px 12px #dce4f1}
+.course strong{font-size:16px}
+.info{color:#8290a6;font-size:13px;margin-top:7px}
+.actions{margin-top:10px;display:flex;gap:12px}
+.actions button{border:0;background:#edf2fc;color:#5575b7;border-radius:8px;padding:7px 12px}
+.empty{text-align:center;color:#9aa5b7;padding:35px 10px}
+.panel{background:white;padding:17px;border-radius:18px;margin-top:22px}
+input,select{width:100%;padding:13px;margin:7px 0;border:1px solid #e2e8f2;border-radius:10px;font-size:15px;background:#fafbfe;color:#283650}
+.primary{width:100%;padding:14px;border:0;border-radius:12px;background:#587bc8;color:white;font-size:16px;font-weight:bold;margin-top:8px}
+.cancel{width:100%;padding:12px;border:0;background:#f0f2f7;border-radius:10px;margin-top:8px;color:#65738b}
+footer{text-align:center;color:#a0a9b8;font-size:12px;margin-top:20px}
+</style>
+</head>
+<body>
+<header>
+<h1>我的课程表 📚</h1>
+<div class="sub">把每一天安排得井井有条</div>
+</header>
+<main>
+<div class="days" id="days"></div>
+<h2 id="dayTitle">周一 · 我的课程</h2>
+<div id="courses"></div>
+
+<div class="panel">
+<h2 id="formTitle">＋ 添加新课程</h2>
+<input id="name" placeholder="课程名称">
+<input id="teacher" placeholder="任课老师（选填）">
+<input id="room" placeholder="上课教室（选填）">
+<select id="period">
+<option value="1-2">第1-2节</option>
+<option value="3-4">第3-4节</option>
+<option value="5-6">第5-6节</option>
+<option value="7-8">第7-8节</option>
+<option value="9-10">第9-10节</option>
+</select>
+<input id="time" placeholder="上课时间（选填，例如 08:00-09:40）">
+<button class="primary" onclick="saveCourse()">保存课程</button>
+<button class="cancel" id="cancel" onclick="resetForm()" style="display:none">取消编辑</button>
+</div>
+<footer>TimeTable · 专属于你的课程表</footer>
+</main>
+<script>
+const week=['周一','周二','周三','周四','周五','周六','周日'];
+let selected=0;
+let editing=null;
+let courses=[];
+try{courses=JSON.parse(localStorage.getItem('myCourses')||'[]')}catch(e){courses=[]}
+
+function store(){
+ localStorage.setItem('myCourses',JSON.stringify(courses));
+ render();
+}
+function render(){
+ document.getElementById('days').innerHTML=week.map((d,i)=>
+ `<button class="day ${i===selected?'active':''}" onclick="selectDay(${i})">${d}</button>`
+ ).join('');
+ document.getElementById('dayTitle').textContent=week[selected]+' · 我的课程';
+ let list=courses.filter(c=>c.day===selected).sort((a,b)=>a.period.localeCompare(b.period));
+ document.getElementById('courses').innerHTML=list.length?list.map(c=>`
+ <div class="course">
+ <strong>${escapeHTML(c.name)}</strong>
+ <div class="info">${escapeHTML(c.period)}节 · ${escapeHTML(c.time||'时间待定')}</div>
+ <div class="info">${escapeHTML(c.room||'教室待定')} · ${escapeHTML(c.teacher||'老师待定')}</div>
+ <div class="actions">
+ <button onclick="editCourse('${c.id}')">编辑</button>
+ <button onclick="deleteCourse('${c.id}')">删除</button>
+ </div></div>`).join(''):'<div class="empty">今天还没有课程 🌱<br>在下方添加一门吧！</div>';
+}
+function escapeHTML(s){
+ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function selectDay(i){selected=i;resetForm();render()}
+function saveCourse(){
+ let name=document.getElementById('name').value.trim();
+ if(!name){alert('请填写课程名称');return}
+ let item={
+ id:editing||String(Date.now()),
+ name,
+ teacher:document.getElementById('teacher').value.trim(),
+ room:document.getElementById('room').value.trim(),
+ period:document.getElementById('period').value,
+ time:document.getElementById('time').value.trim(),
+ day:selected
+ };
+ if(editing){courses=courses.map(c=>c.id===editing?item:c)}
+ else{courses.push(item)}
+ resetForm();
+ store();
+ alert('课程保存成功！');
+}
+function editCourse(id){
+ let c=courses.find(x=>x.id===id);
+ if(!c)return;
+ editing=id;
+ document.getElementById('name').value=c.name;
+ document.getElementById('teacher').value=c.teacher;
+ document.getElementById('room').value=c.room;
+ document.getElementById('period').value=c.period;
+ document.getElementById('time').value=c.time;
+ document.getElementById('formTitle').textContent='编辑课程';
+ document.getElementById('cancel').style.display='block';
+ document.querySelector('.panel').scrollIntoView({behavior:'smooth'});
+}
+function deleteCourse(id){
+ if(confirm('确定删除这门课程吗？')){
+ courses=courses.filter(c=>c.id!==id);
+ if(editing===id)resetForm();
+ store();
+ }
+}
+function resetForm(){
+ editing=null;
+ ['name','teacher','room','time'].forEach(id=>document.getElementById(id).value='');
+ document.getElementById('period').value='1-2';
+ document.getElementById('formTitle').textContent='＋ 添加新课程';
+ document.getElementById('cancel').style.display='none';
+}
+render();
+</script>
+</body>
+</html>
